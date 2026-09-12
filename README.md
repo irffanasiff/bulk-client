@@ -323,38 +323,18 @@ export BULK_API_URL="https://exchange-api.bulk.trade/api/v1"
 
 ## Unsigned CLI transactions
 
-Use `--unsigned` on exchange transaction commands to export JSON for an external
-signer without a private key, Ledger, confirmation prompt, or network request:
+Export transaction fields and hex-encoded raw Ed25519 signing bytes as JSON, without
+signing or sending:
 
 ```bash
 bulk place Buy BTC-USD 0.01@95000 --unsigned \
   --account <public-key> --signature-domain testnet > unsigned.json
 ```
 
-`--account` and `--signature-domain` are required. `--signer` defaults to the account.
-`--nonce` optionally supplies a u64; otherwise a nonce is generated once. These
-public-key and nonce overrides are only available in unsigned mode. The output
-contains `version: 1`, `signatureDomain`, `account`, `signer`, a decimal-string
-`nonce`, `actions`, and `signingPayload: {mode: "raw", encoding: "hex", data: "..."}`.
-Diagnostics go to stderr; stdout contains only the JSON document.
-
-The payload is the exact raw Ed25519 preimage, including the network domain; sign
-those decoded bytes without adding another hash or domain byte. An external service
-must validate the transaction before signing, attach its signature to the unchanged
-transaction fields, and submit it separately. The export is not a Ledger/offchain
-signing envelope. Preserve the exported nonce and transaction for recovery.
-
-Unsigned export supports orders, cancellations, conditionals, faucet, agent-wallet
-and subaccount operations, transfers, multisig operations, and single-market leverage
-updates. Multisig policy updates retain their normal proposal wrapping. Multiple
-leverage markets are rejected because upstream map encoding is not deterministic;
-admin configuration actions are not yet supported. Solana `deposit` and
-`withdraw-intent`, `config`, and `ledger-info` also reject `--unsigned`.
-
-Numeric fields must be finite and positive (slippage may be zero); fixed-point
-values must not round to zero or overflow. Existing fixed-point rounding still applies.
-Preparation does not verify market tick sizes, account eligibility, or venue acceptance.
-Validation failures emit no JSON. Normal signed command behavior is unchanged.
+`--signer` defaults to the account; `--nonce` overrides the generated nonce. Validate
+before signing the decoded payload bytes without an additional hash or domain byte.
+Preserve the nonce for recovery. Multi-market leverage, admin configuration, and
+Solana deposit/withdrawal exports are unsupported. See `bulk --help` for flags.
 
 ## License
 
