@@ -28,7 +28,7 @@ pub async fn handle_create_multisig(
         );
     }
 
-    println!(
+    eprintln!(
         "Creating {}-of-{} multisig  lock={}s  lifetime={}s",
         args.threshold,
         args.signers.len(),
@@ -36,7 +36,7 @@ pub async fn handle_create_multisig(
         args.lifetime,
     );
     for (i, pk) in args.signers.iter().enumerate() {
-        println!("  signer[{i}] = {pk}");
+        eprintln!("  signer[{i}] = {pk}");
     }
 
     let action = Action::CreateMultisig(CreateMultisig {
@@ -78,7 +78,7 @@ pub async fn handle_update_multisig_policy(
         bail!("at least one policy field must be supplied");
     }
 
-    println!(
+    eprintln!(
         "Updating multisig {}  signers={:?}  threshold={:?}  lock={:?}s  lifetime={:?}s",
         args.multisig, args.signers, args.threshold, args.lock, args.lifetime,
     );
@@ -103,7 +103,7 @@ pub async fn handle_multisig_approve(
     args: MultisigProposalArgs,
     submit: &SubmitOptions,
 ) -> eyre::Result<()> {
-    println!(
+    eprintln!(
         "Approving proposal {} on multisig {}",
         args.proposal_id, args.multisig
     );
@@ -125,7 +125,7 @@ pub async fn handle_multisig_reject(
     args: MultisigProposalArgs,
     submit: &SubmitOptions,
 ) -> eyre::Result<()> {
-    println!(
+    eprintln!(
         "Rejecting proposal {} on multisig {}",
         args.proposal_id, args.multisig
     );
@@ -147,7 +147,7 @@ pub async fn handle_multisig_cancel(
     args: MultisigProposalArgs,
     submit: &SubmitOptions,
 ) -> eyre::Result<()> {
-    println!(
+    eprintln!(
         "Cancelling proposal {} on multisig {}",
         args.proposal_id, args.multisig
     );
@@ -169,7 +169,7 @@ pub async fn handle_multisig_execute(
     args: MultisigProposalArgs,
     submit: &SubmitOptions,
 ) -> eyre::Result<()> {
-    println!(
+    eprintln!(
         "Executing proposal {} on multisig {}",
         args.proposal_id, args.multisig
     );

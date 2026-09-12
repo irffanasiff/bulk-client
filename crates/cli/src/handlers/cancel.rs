@@ -9,7 +9,7 @@ pub async fn handle_cancel(
     args: CancelArgs,
     submit: &SubmitOptions,
 ) -> eyre::Result<()> {
-    println!("Cancelling order {}", args.order_id);
+    eprintln!("Cancelling order {}", args.order_id);
 
     let action = Action::Cancel(CancelOrder {
         symbol: args.symbol,
@@ -27,11 +27,11 @@ pub async fn handle_cancel_all(
 ) -> eyre::Result<()> {
     let symbols = match &args.instrument {
         Some(inst) => {
-            println!("Cancelling all orders for {inst}");
+            eprintln!("Cancelling all orders for {inst}");
             vec![inst.clone()]
         }
         None => {
-            println!("Cancelling all open orders");
+            eprintln!("Cancelling all open orders");
             vec![]
         }
     };

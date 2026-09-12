@@ -15,8 +15,11 @@ pub async fn handle_faucet(
     args: FaucetArgs,
     submit: &SubmitOptions,
 ) -> eyre::Result<()> {
-    let account = api.public_key().unwrap();
-    println!("Faucet request for account {}", account);
+    let account = submit
+        .unsigned_account
+        .or_else(|| api.public_key())
+        .ok_or_else(|| eyre::eyre!("account required"))?;
+    eprintln!("Faucet request for account {}", account);
 
     let action = Action::Faucet(Faucet {
         user: account,
@@ -37,7 +40,7 @@ pub async fn handle_update_leverage(
     submit: &SubmitOptions,
 ) -> eyre::Result<()> {
     for (sym, lev) in &args.settings {
-        println!("  {sym} → {lev}x");
+        eprintln!("  {sym} → {lev}x");
     }
 
     let max_leverage: HashMap<String, f64> = args.settings.into_iter().collect();
@@ -60,7 +63,7 @@ pub async fn handle_agent_wallet(
     submit: &SubmitOptions,
 ) -> eyre::Result<()> {
     let verb = if args.delete { "Removing" } else { "Adding" };
-    println!("{verb} agent wallet {}", args.agent);
+    eprintln!("{verb} agent wallet {}", args.agent);
 
     let action = Action::AgentWalletCreation(AgentWalletCreation {
         agent: args.agent,
@@ -80,7 +83,7 @@ pub async fn handle_create_subaccount(
     args: CreateSubAccountArgs,
     submit: &SubmitOptions,
 ) -> eyre::Result<()> {
-    println!(
+    eprintln!(
         "Creating sub-account '{}' margin_symbol={:?} margin_amount={:?}",
         args.name, args.margin_symbol, args.margin_amount
     );
@@ -103,7 +106,7 @@ pub async fn handle_remove_subaccount(
     args: RemoveSubAccountArgs,
     submit: &SubmitOptions,
 ) -> eyre::Result<()> {
-    println!("Removing sub-account {}", args.pubkey);
+    eprintln!("Removing sub-account {}", args.pubkey);
 
     let action = Action::RemoveSubAccount(RemoveSubAccount {
         to_remove: args.pubkey,
@@ -122,7 +125,7 @@ pub async fn handle_transfer(
     args: TransferArgs,
     submit: &SubmitOptions,
 ) -> eyre::Result<()> {
-    println!(
+    eprintln!(
         "Transferring {} {} from {} → {} ({:?})",
         args.amount, args.symbol, args.from, args.to, args.kind
     );

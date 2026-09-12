@@ -67,7 +67,9 @@ pub struct Transaction {
 
 #[allow(unused)]
 impl Transaction {
-    pub(crate) fn raw_signable_bytes(
+    /// Returns the exact raw Ed25519 signing payload for external signing.
+    /// Binds the ordered actions, nonce, account and signature domain.
+    pub fn raw_signable_bytes(
         signature_domain: SignatureDomain,
         account: Pubkey,
         nonce: u64,

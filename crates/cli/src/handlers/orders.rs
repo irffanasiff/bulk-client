@@ -25,7 +25,7 @@ pub async fn handle_place(
             .unwrap_or(bulk_client::msgs::DEFAULT_MARKET_SLIPPAGE_BPS)
     });
 
-    println!(
+    eprintln!(
         "Placing {} {} {} {:?} tif={:?}{}{}{}",
         order_type,
         args.side,
@@ -72,7 +72,7 @@ pub async fn handle_modify(
     args: ModifyArgs,
     submit: &SubmitOptions,
 ) -> eyre::Result<()> {
-    println!(
+    eprintln!(
         "Modifying order {} on {} → size {}",
         args.order_id, args.symbol, args.size
     );

@@ -13,7 +13,7 @@ pub async fn handle_stop(
     args: StopArgs,
     submit: &SubmitOptions,
 ) -> eyre::Result<()> {
-    println!(
+    eprintln!(
         "Placing Stop on {} | size={} threshold={} above={} limit={:?}",
         args.symbol, args.size, args.threshold, args.above, args.limit
     );
@@ -40,7 +40,7 @@ pub async fn handle_take_profit(
     args: StopArgs,
     submit: &SubmitOptions,
 ) -> eyre::Result<()> {
-    println!(
+    eprintln!(
         "Placing TakeProfit on {} | size={} threshold={} above={} limit={:?}",
         args.symbol, args.size, args.threshold, args.above, args.limit
     );
@@ -67,7 +67,7 @@ pub async fn handle_range(
     args: RangeArgs,
     submit: &SubmitOptions,
 ) -> eyre::Result<()> {
-    println!(
+    eprintln!(
         "Placing Range on {} | size={} [{}, {}] buy={} limit_min={:?} limit_max={:?}",
         args.symbol, args.size, args.min, args.max, args.buy, args.limit_min, args.limit_max
     );
@@ -96,7 +96,7 @@ pub async fn handle_trailing(
     args: TrailingArgs,
     submit: &SubmitOptions,
 ) -> eyre::Result<()> {
-    println!(
+    eprintln!(
         "Placing TrailingStop on {} | size={} buy={} trail_bps={} step_bps={} limit={:?}",
         args.symbol, args.size, args.buy, args.trail_bps, args.step_bps, args.limit
     );

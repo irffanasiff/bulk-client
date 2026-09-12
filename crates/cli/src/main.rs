@@ -40,6 +40,7 @@ use bulk_client::transaction::{SignatureDomain, TransactionSigner};
 use bulk_client::BulkHttpClient;
 use clap::{Parser, Subcommand};
 use solana_keypair::Keypair;
+use solana_pubkey::Pubkey;
 use std::time::Duration;
 // ---------------------------------------------------------------------------
 // Top-level CLI
@@ -59,6 +60,22 @@ use std::time::Duration;
 struct Cli {
     #[command(subcommand)]
     command: Command,
+
+    /// Export a raw unsigned exchange transaction as JSON; never sign or send.
+    #[arg(long, global = true, requires = "account", conflicts_with = "ledger")]
+    unsigned: bool,
+
+    /// Account to prepare for (unsigned mode only).
+    #[arg(long, global = true, requires = "unsigned")]
+    account: Option<Pubkey>,
+
+    /// External signer public key; defaults to account (unsigned mode only).
+    #[arg(long, global = true, requires = "unsigned")]
+    signer: Option<Pubkey>,
+
+    /// Explicit transaction nonce; otherwise generated once (unsigned mode only).
+    #[arg(long, global = true, requires = "unsigned")]
+    nonce: Option<u64>,
 
     /// Private key (base58), required unless --ledger is used.
     #[arg(long, env = "BULK_PRIVATE_KEY", hide_env_values = true, global = true)]
@@ -395,7 +412,22 @@ fn handle_config(args: &ConfigArgs, config: &mut CliConfig) -> eyre::Result<()> 
 #[tokio::main]
 async fn main() -> eyre::Result<()> {
     let cli = Cli::parse();
-    let mut stored_config = CliConfig::load()?;
+    if cli.unsigned
+        && matches!(
+            &cli.command,
+            Command::Config(_)
+                | Command::LedgerInfo(_)
+                | Command::Deposit(_)
+                | Command::WithdrawIntent(_)
+        )
+    {
+        eyre::bail!("--unsigned is supported only for exchange transaction commands");
+    }
+    let mut stored_config = if cli.unsigned {
+        CliConfig::default()
+    } else {
+        CliConfig::load()?
+    };
     let api_url = resolve_api_url(cli.api_url.as_deref(), &stored_config);
     let default_timeout = if cli.command.uses_deploy_timeout() {
         Duration::from_secs(120)
@@ -405,6 +437,9 @@ async fn main() -> eyre::Result<()> {
     let submit = SubmitOptions {
         preview: cli.preview,
         auto_yes: cli.yes,
+        unsigned_account: cli.account,
+        unsigned_signer: cli.signer,
+        nonce: cli.nonce,
     };
 
     if matches!(&cli.command, Command::LedgerInfo(_)) {
@@ -414,16 +449,18 @@ async fn main() -> eyre::Result<()> {
         return handle_config(args, &mut stored_config);
     }
 
-    if matches!(&cli.command, Command::Deposit(_) | Command::WithdrawIntent(_)) {
+    if matches!(
+        &cli.command,
+        Command::Deposit(_) | Command::WithdrawIntent(_)
+    ) {
         if cli.ledger {
             return Err(eyre::eyre!(
                 "deposit / withdraw-intent require --private-key (Ledger not supported for on-chain Solana txs yet)"
             ));
         }
-        let key = cli
-            .private_key
-            .as_deref()
-            .ok_or_else(|| eyre::eyre!("--private-key is required for deposit / withdraw-intent"))?;
+        let key = cli.private_key.as_deref().ok_or_else(|| {
+            eyre::eyre!("--private-key is required for deposit / withdraw-intent")
+        })?;
         let keypair = keypair_from_private_key(key)?;
         return match cli.command {
             Command::Deposit(args) => handle_deposit(&keypair, args, &submit).await,
@@ -432,27 +469,29 @@ async fn main() -> eyre::Result<()> {
         };
     }
 
-    let signer = if cli.ledger {
-        TransactionSigner::from_ledger_with_options(
+    let signer = if cli.unsigned {
+        None
+    } else if cli.ledger {
+        Some(TransactionSigner::from_ledger_with_options(
             &cli.ledger_locator,
             cli.ledger_derivation_path.as_deref(),
             cli.ledger_confirm_key,
             "bulk-cli",
-        )?
+        )?)
     } else {
         let key = cli
             .private_key
             .as_deref()
             .ok_or_else(|| eyre::eyre!("--private-key is required unless --ledger is used"))?;
-        TransactionSigner::from_private_key(key)?
+        Some(TransactionSigner::from_private_key(key)?)
     };
     let signature_domain = cli
         .signature_domain
-        .ok_or_else(|| eyre::eyre!("--signature-domain is required for signed commands"))?;
+        .ok_or_else(|| eyre::eyre!("--signature-domain is required for exchange transactions"))?;
 
     let config = HttpConfig {
         base_url: api_url,
-        signer: Some(signer),
+        signer,
         signature_domain: Some(signature_domain),
         default_timeout,
     };

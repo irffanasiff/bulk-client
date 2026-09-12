@@ -1,7 +1,7 @@
 use bulk_client::msgs::MultisigPropose;
 use bulk_client::msgs::Response;
 use bulk_client::parts::make_nonce;
-use bulk_client::transaction::{Action, ActionMeta, ClearSignMessage};
+use bulk_client::transaction::{Action, ActionMeta, ClearSignMessage, Transaction};
 use bulk_client::BulkHttpClient;
 use solana_pubkey::Pubkey;
 use std::fmt::Write as _;
@@ -14,6 +14,9 @@ const FEE_ADMIN_MULTISIG: &str = "FEEADM1N11111111111111111111111111111111113F";
 pub struct SubmitOptions {
     pub preview: bool,
     pub auto_yes: bool,
+    pub unsigned_account: Option<Pubkey>,
+    pub unsigned_signer: Option<Pubkey>,
+    pub nonce: Option<u64>,
 }
 
 pub async fn submit_actions(
@@ -22,8 +25,31 @@ pub async fn submit_actions(
     actions: Vec<Action>,
 ) -> eyre::Result<()> {
     let actions = wrap_admin_actions(actions);
-    let nonce = make_nonce();
+    let nonce = options.nonce.unwrap_or_else(make_nonce);
     let cfg = api.config();
+    if let Some(account) = options.unsigned_account {
+        let domain = cfg
+            .signature_domain
+            .ok_or_else(|| eyre::eyre!("signature domain required"))?;
+        let bytes = Transaction::raw_signable_bytes(domain, account, nonce, &actions)?;
+        let mut hex = String::with_capacity(bytes.len() * 2);
+        for byte in bytes {
+            write!(&mut hex, "{byte:02x}")?;
+        }
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&serde_json::json!({
+                "version": 1,
+                "signatureDomain": domain.as_str(),
+                "account": account.to_string(),
+                "signer": options.unsigned_signer.unwrap_or(account).to_string(),
+                "nonce": nonce.to_string(),
+                "actions": actions,
+                "signingPayload": { "mode": "raw", "encoding": "hex", "data": hex }
+            }))?
+        );
+        return Ok(());
+    }
     let signer = cfg
         .signer
         .as_ref()
