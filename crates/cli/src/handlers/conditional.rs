@@ -9,14 +9,14 @@ use std::sync::Arc;
 // ---------------------------------------------------------------------------
 
 pub async fn handle_stop(
-    api: &mut Option<BulkHttpClient>,
+    api: Option<&BulkHttpClient>,
     args: StopArgs,
     submit: &SubmitOptions,
 ) -> eyre::Result<()> {
     submit.progress(format_args!(
         "Placing Stop on {} | size={} threshold={} above={} limit={:?}",
         args.symbol, args.size, args.threshold, args.above, args.limit
-    ));
+    ))?;
 
     let action = Action::Stop(StopOrTP {
         symbol: Arc::from(args.symbol.as_str()),
@@ -36,14 +36,14 @@ pub async fn handle_stop(
 // ---------------------------------------------------------------------------
 
 pub async fn handle_take_profit(
-    api: &mut Option<BulkHttpClient>,
+    api: Option<&BulkHttpClient>,
     args: StopArgs,
     submit: &SubmitOptions,
 ) -> eyre::Result<()> {
     submit.progress(format_args!(
         "Placing TakeProfit on {} | size={} threshold={} above={} limit={:?}",
         args.symbol, args.size, args.threshold, args.above, args.limit
-    ));
+    ))?;
 
     let action = Action::TakeProfit(StopOrTP {
         symbol: Arc::from(args.symbol.as_str()),
@@ -63,14 +63,14 @@ pub async fn handle_take_profit(
 // ---------------------------------------------------------------------------
 
 pub async fn handle_range(
-    api: &mut Option<BulkHttpClient>,
+    api: Option<&BulkHttpClient>,
     args: RangeArgs,
     submit: &SubmitOptions,
 ) -> eyre::Result<()> {
     submit.progress(format_args!(
         "Placing Range on {} | size={} [{}, {}] buy={} limit_min={:?} limit_max={:?}",
         args.symbol, args.size, args.min, args.max, args.buy, args.limit_min, args.limit_max
-    ));
+    ))?;
 
     let action = Action::Range(Range {
         symbol: Arc::from(args.symbol.as_str()),
@@ -92,14 +92,14 @@ pub async fn handle_range(
 // ---------------------------------------------------------------------------
 
 pub async fn handle_trailing(
-    api: &mut Option<BulkHttpClient>,
+    api: Option<&BulkHttpClient>,
     args: TrailingArgs,
     submit: &SubmitOptions,
 ) -> eyre::Result<()> {
     submit.progress(format_args!(
         "Placing TrailingStop on {} | size={} buy={} trail_bps={} step_bps={} limit={:?}",
         args.symbol, args.size, args.buy, args.trail_bps, args.step_bps, args.limit
-    ));
+    ))?;
 
     let action = Action::Trailing(Trailing {
         symbol: Arc::from(args.symbol.as_str()),

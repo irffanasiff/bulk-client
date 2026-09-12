@@ -5,11 +5,11 @@ use bulk_client::transaction::Action;
 use bulk_client::BulkHttpClient;
 
 pub async fn handle_cancel(
-    api: &mut Option<BulkHttpClient>,
+    api: Option<&BulkHttpClient>,
     args: CancelArgs,
     submit: &SubmitOptions,
 ) -> eyre::Result<()> {
-    submit.progress(format_args!("Cancelling order {}", args.order_id));
+    submit.progress(format_args!("Cancelling order {}", args.order_id))?;
 
     let action = Action::Cancel(CancelOrder {
         symbol: args.symbol,
@@ -21,17 +21,17 @@ pub async fn handle_cancel(
 }
 
 pub async fn handle_cancel_all(
-    api: &mut Option<BulkHttpClient>,
+    api: Option<&BulkHttpClient>,
     args: CancelAllArgs,
     submit: &SubmitOptions,
 ) -> eyre::Result<()> {
     let symbols = match &args.instrument {
         Some(inst) => {
-            submit.progress(format_args!("Cancelling all orders for {inst}"));
+            submit.progress(format_args!("Cancelling all orders for {inst}"))?;
             vec![inst.clone()]
         }
         None => {
-            submit.progress(format_args!("Cancelling all open orders"));
+            submit.progress(format_args!("Cancelling all open orders"))?;
             vec![]
         }
     };

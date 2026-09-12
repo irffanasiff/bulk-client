@@ -348,7 +348,14 @@ must validate the transaction before signing, attach its signature to the unchan
 transaction fields, and submit it separately. The export is not a Ledger/offchain
 signing envelope. Preserve the exported nonce and transaction for recovery.
 
-This mode supports exchange commands using the shared transaction path, including
-orders, cancellations, conditionals, account operations, and multisig/admin actions
-(with the same proposal wrapping as signed mode). Solana `deposit` and
-`withdraw-intent`, `config`, and `ledger-info` do not support `--unsigned`.
+Unsigned export supports orders, cancellations, conditionals, faucet, agent-wallet
+and subaccount operations, transfers, multisig operations, and single-market leverage
+updates. Multisig policy updates retain their normal proposal wrapping. Multiple
+leverage markets are rejected because upstream map encoding is not deterministic;
+admin configuration actions are not yet supported. Solana `deposit` and
+`withdraw-intent`, `config`, and `ledger-info` also reject `--unsigned`.
+
+Numeric fields must be finite and positive (slippage may be zero); fixed-point
+values must not round to zero or overflow. Existing fixed-point rounding still applies.
+Preparation does not verify market tick sizes, account eligibility, or venue acceptance.
+Validation failures emit no JSON. Normal signed command behavior is unchanged.

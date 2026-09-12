@@ -13,58 +13,185 @@ const ADMIN_MULTISIG: &str = "ADM1N11111111111111111111111111111111111113D";
 const FEE_ADMIN_MULTISIG: &str = "FEEADM1N11111111111111111111111111111111113F";
 
 #[derive(Clone, Debug)]
+pub struct UnsignedOptions {
+    pub account: Pubkey,
+    pub signer: Pubkey,
+    pub nonce: Option<u64>,
+    pub signature_domain: SignatureDomain,
+}
+
+#[derive(Clone, Debug)]
 pub struct SubmitOptions {
     pub preview: bool,
     pub auto_yes: bool,
-    pub unsigned_account: Option<Pubkey>,
-    pub unsigned_signer: Option<Pubkey>,
-    pub nonce: Option<u64>,
-    pub signature_domain: Option<SignatureDomain>,
+    pub unsigned: Option<UnsignedOptions>,
 }
 
 impl SubmitOptions {
-    pub fn progress(&self, message: std::fmt::Arguments<'_>) {
-        if self.unsigned_account.is_some() {
-            eprintln!("{message}");
+    pub fn progress(&self, message: std::fmt::Arguments<'_>) -> std::io::Result<()> {
+        use std::io::Write;
+        if self.unsigned.is_some() {
+            writeln!(std::io::stderr().lock(), "{message}")
         } else {
-            println!("{message}");
+            writeln!(std::io::stdout().lock(), "{message}")
         }
     }
 }
 
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct UnsignedTransaction<'a> {
+    version: u8,
+    signature_domain: &'a str,
+    account: String,
+    signer: String,
+    nonce: String,
+    actions: &'a [Action],
+    signing_payload: SigningPayload,
+}
+
+#[derive(serde::Serialize)]
+struct SigningPayload {
+    mode: &'static str,
+    encoding: &'static str,
+    data: String,
+}
+
+// Keep validation local to unsigned export: do not change upstream signing bytes.
+fn validate_unsigned_actions(actions: &[Action]) -> eyre::Result<()> {
+    fn positive(value: f64) -> eyre::Result<()> {
+        eyre::ensure!(
+            value.is_finite() && value > 0.0,
+            "unsigned numeric values must be finite and positive"
+        );
+        Ok(())
+    }
+    fn fixed(value: f64) -> eyre::Result<()> {
+        positive(value)?;
+        let scaled = (value * 1e8).round();
+        eyre::ensure!(
+            scaled >= 1.0 && scaled < u64::MAX as f64,
+            "unsigned fixed-point value is outside the representable range"
+        );
+        Ok(())
+    }
+    for action in actions {
+        match action {
+            Action::LimitOrder(a) => {
+                fixed(a.size)?;
+                fixed(a.price)?;
+            }
+            Action::MarketOrder(a) => {
+                fixed(a.size)?;
+                if let Some(v) = a.slippage {
+                    eyre::ensure!(
+                        v.is_finite() && v >= 0.0 && (v * 1e8).round() < u64::MAX as f64,
+                        "invalid unsigned slippage"
+                    );
+                }
+            }
+            Action::ModifyOrder(a) => fixed(a.amount)?,
+            Action::Stop(a) | Action::TakeProfit(a) => {
+                fixed(a.size)?;
+                fixed(a.threshold)?;
+                if let Some(v) = a.limit {
+                    fixed(v)?;
+                }
+            }
+            Action::Range(a) => {
+                fixed(a.size)?;
+                fixed(a.collar_min)?;
+                fixed(a.collar_max)?;
+                if let Some(v) = a.limit_min {
+                    fixed(v)?;
+                }
+                if let Some(v) = a.limit_max {
+                    fixed(v)?;
+                }
+            }
+            Action::Trailing(a) => {
+                fixed(a.size)?;
+                if let Some(v) = a.limit {
+                    fixed(v)?;
+                }
+            }
+            Action::UpdateUserSettings(a) => {
+                eyre::ensure!(a.max_leverage.len() <= 1,
+                    "unsigned export supports at most one leverage market: upstream map encoding is not deterministic");
+                for v in a.max_leverage.values() {
+                    positive(*v)?;
+                }
+            }
+            Action::Faucet(a) => {
+                if let Some(v) = a.amount {
+                    positive(v)?;
+                }
+            }
+            Action::CreateSubAccount(a) => {
+                if let Some(v) = a.margin_amount {
+                    positive(v)?;
+                }
+            }
+            Action::Transfer(a) => positive(a.margin_amount)?,
+            Action::MultisigPropose(a) => validate_unsigned_actions(&a.actions)?,
+            Action::Cancel(_)
+            | Action::CancelAll(_)
+            | Action::AgentWalletCreation(_)
+            | Action::RemoveSubAccount(_)
+            | Action::CreateMultisig(_)
+            | Action::UpdateMultisigPolicy(_)
+            | Action::MultisigApprove(_)
+            | Action::MultisigReject(_)
+            | Action::MultisigCancel(_)
+            | Action::MultisigExecute(_) => {}
+            _ => eyre::bail!("this action does not yet support validated unsigned export"),
+        }
+    }
+    Ok(())
+}
+
 pub async fn submit_actions(
-    api: &mut Option<BulkHttpClient>,
+    api: Option<&BulkHttpClient>,
     options: &SubmitOptions,
     actions: Vec<Action>,
 ) -> eyre::Result<()> {
     let actions = wrap_admin_actions(actions);
-    let nonce = options.nonce.unwrap_or_else(make_nonce);
-    if let Some(account) = options.unsigned_account {
-        let domain = options
-            .signature_domain
-            .ok_or_else(|| eyre::eyre!("signature domain required"))?;
-        let bytes = Transaction::raw_signable_bytes(domain, account, nonce, &actions)?;
+    if let Some(unsigned) = &options.unsigned {
+        validate_unsigned_actions(&actions)?;
+        let nonce = unsigned.nonce.unwrap_or_else(make_nonce);
+        let bytes = Transaction::raw_signable_bytes(
+            unsigned.signature_domain,
+            unsigned.account,
+            nonce,
+            &actions,
+        )?;
         let mut hex = String::with_capacity(bytes.len() * 2);
         for byte in bytes {
             write!(&mut hex, "{byte:02x}")?;
         }
-        println!(
-            "{}",
-            serde_json::to_string_pretty(&serde_json::json!({
-                "version": 1,
-                "signatureDomain": domain.as_str(),
-                "account": account.to_string(),
-                "signer": options.unsigned_signer.unwrap_or(account).to_string(),
-                "nonce": nonce.to_string(),
-                "actions": actions,
-                "signingPayload": { "mode": "raw", "encoding": "hex", "data": hex }
-            }))?
-        );
+        let document = UnsignedTransaction {
+            version: 1,
+            signature_domain: unsigned.signature_domain.as_str(),
+            account: unsigned.account.to_string(),
+            signer: unsigned.signer.to_string(),
+            nonce: nonce.to_string(),
+            actions: &actions,
+            signing_payload: SigningPayload {
+                mode: "raw",
+                encoding: "hex",
+                data: hex,
+            },
+        };
+        // Finish serialization before writing so validation failures cannot emit partial JSON.
+        let json = serde_json::to_vec_pretty(&document)?;
+        use std::io::Write;
+        let mut stdout = std::io::stdout().lock();
+        stdout.write_all(&json)?;
+        stdout.write_all(b"\n")?;
         return Ok(());
     }
-    let api = api
-        .as_ref()
-        .ok_or_else(|| eyre::eyre!("signed client required"))?;
+    let nonce = make_nonce();
+    let api = api.ok_or_else(|| eyre::eyre!("signed client required"))?;
     let cfg = api.config();
     let signer = cfg
         .signer

@@ -165,3 +165,116 @@ fn signed_progress_keeps_stdout_and_unsigned_keeps_json() {
     assert!(String::from_utf8_lossy(&out.stdout).starts_with("Placing Limit Buy BTC-USD"));
     assert!(String::from_utf8_lossy(&out.stderr).contains("transaction rejected by user"));
 }
+
+#[test]
+fn unsigned_rejects_invalid_numbers_and_unstable_maps_without_output() {
+    for command in [
+        vec!["place", "Buy", "BTC-USD", "NaN@95000"],
+        vec!["place", "Buy", "BTC-USD", "inf@95000"],
+        vec!["place", "Buy", "BTC-USD", "0.000000001@95000"],
+        vec!["place", "Buy", "BTC-USD", "1e300@95000"],
+        vec!["place", "Buy", "BTC-USD", "1", "--slippage", "NaN"],
+        vec!["stop", "BTC-USD", "1", "95000", "--limit", "NaN"],
+        vec!["update-leverage", "BTC-USD=NaN"],
+        vec!["update-leverage", "BTC-USD=2", "ETH-USD=3"],
+        vec!["faucet", "NaN"],
+        vec!["user-admin", ACCOUNT, "--maxorders", "500"],
+    ] {
+        let mut args = command;
+        args.extend([
+            "--unsigned",
+            "--account",
+            ACCOUNT,
+            "--signature-domain",
+            "testnet",
+        ]);
+        let out = run(&args);
+        assert!(!out.status.success(), "unexpected export: {args:?}");
+        assert!(out.stdout.is_empty(), "partial JSON: {args:?}");
+        let error = String::from_utf8_lossy(&out.stderr);
+        assert!(
+            error.contains("unsigned"),
+            "unexpected error for {args:?}: {error}"
+        );
+        assert!(!error.contains("panicked"));
+    }
+}
+
+#[test]
+fn supported_exports_reconstruct_identical_signing_bytes() {
+    for command in [
+        vec!["place", "Buy", "BTC-USD", "0.01@95000"],
+        vec!["place", "Sell", "BTC-USD", "0.01", "--reduce-only"],
+        vec!["stop", "BTC-USD", "1", "95000", "--limit", "94000"],
+        vec!["update-leverage", "BTC-USD=2"],
+        vec!["update-multisig", ACCOUNT, "--threshold", "2"],
+        vec!["multisig-approve", ACCOUNT, "123"],
+        vec!["faucet", "10"],
+    ] {
+        let mut args = command;
+        args.extend([
+            "--unsigned",
+            "--account",
+            ACCOUNT,
+            "--nonce",
+            "123",
+            "--signature-domain",
+            "testnet",
+        ]);
+        let mut previous = None;
+        for _ in 0..3 {
+            let out = run(&args);
+            assert!(
+                out.status.success(),
+                "{}",
+                String::from_utf8_lossy(&out.stderr)
+            );
+            let value: Value = serde_json::from_slice(&out.stdout).unwrap();
+            let actions: Vec<Action> = serde_json::from_value(value["actions"].clone()).unwrap();
+            let bytes = Transaction::raw_signable_bytes(
+                SignatureDomain::Testnet,
+                ACCOUNT.parse().unwrap(),
+                123,
+                &actions,
+            )
+            .unwrap();
+            let hex: String = bytes.iter().map(|b| format!("{b:02x}")).collect();
+            assert_eq!(value["signingPayload"]["data"], hex);
+            if let Some(previous) = previous {
+                assert_eq!(value, previous);
+            }
+            previous = Some(value);
+        }
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn unsigned_closed_stdout_returns_an_error_without_panicking() {
+    use std::os::fd::OwnedFd;
+    use std::os::unix::net::UnixStream;
+    let (reader, writer) = UnixStream::pair().unwrap();
+    drop(reader);
+    let fd: OwnedFd = writer.into();
+    let out = Command::new(env!("CARGO_BIN_EXE_bulk"))
+        .env_remove("BULK_PRIVATE_KEY")
+        .env_remove("BULK_SIGNATURE_DOMAIN")
+        .args([
+            "place",
+            "Buy",
+            "BTC-USD",
+            "1",
+            "--unsigned",
+            "--account",
+            ACCOUNT,
+            "--signature-domain",
+            "testnet",
+        ])
+        .stdout(std::process::Stdio::from(fd))
+        .output()
+        .unwrap();
+    assert!(!out.status.success());
+    let error = String::from_utf8_lossy(&out.stderr);
+    assert!(!error.contains("panicked"), "{error}");
+    assert!(error.contains("Broken pipe"), "{error}");
+}

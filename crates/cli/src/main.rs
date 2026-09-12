@@ -11,7 +11,7 @@ use crate::commands::{
     TrailingArgs, TransferArgs, UpdateLeverageArgs, UpdateMultisigPolicyArgs, UserAdminArgs,
     WithdrawIntentArgs,
 };
-use crate::common::submit::SubmitOptions;
+use crate::common::submit::{SubmitOptions, UnsignedOptions};
 use crate::common::{resolve_api_url, CliConfig};
 use crate::handlers::account::{
     handle_agent_wallet, handle_create_subaccount, handle_faucet, handle_remove_subaccount,
@@ -437,10 +437,19 @@ async fn main() -> eyre::Result<()> {
     let submit = SubmitOptions {
         preview: cli.preview,
         auto_yes: cli.yes,
-        unsigned_account: cli.account,
-        unsigned_signer: cli.signer,
-        nonce: cli.nonce,
-        signature_domain: cli.signature_domain,
+        unsigned: if cli.unsigned {
+            let account = cli.account.ok_or_else(|| eyre::eyre!("account required"))?;
+            Some(UnsignedOptions {
+                account,
+                signer: cli.signer.unwrap_or(account),
+                nonce: cli.nonce,
+                signature_domain: cli
+                    .signature_domain
+                    .ok_or_else(|| eyre::eyre!("signature domain required"))?,
+            })
+        } else {
+            None
+        },
     };
 
     if matches!(&cli.command, Command::LedgerInfo(_)) {
@@ -496,7 +505,7 @@ async fn main() -> eyre::Result<()> {
         signature_domain: Some(signature_domain),
         default_timeout,
     };
-    let mut api = if cli.unsigned {
+    let api = if cli.unsigned {
         None
     } else {
         Some(BulkHttpClient::new(&config)?)
@@ -504,49 +513,57 @@ async fn main() -> eyre::Result<()> {
 
     match cli.command {
         // Account
-        Command::Faucet(args) => handle_faucet(&mut api, args, &submit).await,
+        Command::Faucet(args) => handle_faucet(api.as_ref(), args, &submit).await,
 
         // Orders
-        Command::Place(args) => handle_place(&mut api, args, &submit).await,
-        Command::Modify(args) => handle_modify(&mut api, args, &submit).await,
-        Command::Cancel(args) => handle_cancel(&mut api, args, &submit).await,
-        Command::CancelAll(args) => handle_cancel_all(&mut api, args, &submit).await,
+        Command::Place(args) => handle_place(api.as_ref(), args, &submit).await,
+        Command::Modify(args) => handle_modify(api.as_ref(), args, &submit).await,
+        Command::Cancel(args) => handle_cancel(api.as_ref(), args, &submit).await,
+        Command::CancelAll(args) => handle_cancel_all(api.as_ref(), args, &submit).await,
 
         // Conditional orders
-        Command::Stop(args) => handle_stop(&mut api, args, &submit).await,
-        Command::TakeProfit(args) => handle_take_profit(&mut api, args, &submit).await,
-        Command::Range(args) => handle_range(&mut api, args, &submit).await,
-        Command::Trail(args) => handle_trailing(&mut api, args, &submit).await,
+        Command::Stop(args) => handle_stop(api.as_ref(), args, &submit).await,
+        Command::TakeProfit(args) => handle_take_profit(api.as_ref(), args, &submit).await,
+        Command::Range(args) => handle_range(api.as_ref(), args, &submit).await,
+        Command::Trail(args) => handle_trailing(api.as_ref(), args, &submit).await,
 
         // Settings
-        Command::UpdateLeverage(args) => handle_update_leverage(&mut api, args, &submit).await,
-        Command::AgentWallet(args) => handle_agent_wallet(&mut api, args, &submit).await,
+        Command::UpdateLeverage(args) => handle_update_leverage(api.as_ref(), args, &submit).await,
+        Command::AgentWallet(args) => handle_agent_wallet(api.as_ref(), args, &submit).await,
 
         // Sub-accounts
-        Command::CreateSubAccount(args) => handle_create_subaccount(&mut api, args, &submit).await,
-        Command::RemoveSubAccount(args) => handle_remove_subaccount(&mut api, args, &submit).await,
-        Command::Transfer(args) => handle_transfer(&mut api, args, &submit).await,
+        Command::CreateSubAccount(args) => {
+            handle_create_subaccount(api.as_ref(), args, &submit).await
+        }
+        Command::RemoveSubAccount(args) => {
+            handle_remove_subaccount(api.as_ref(), args, &submit).await
+        }
+        Command::Transfer(args) => handle_transfer(api.as_ref(), args, &submit).await,
 
         // Multisig
-        Command::CreateMultisig(args) => handle_create_multisig(&mut api, args, &submit).await,
+        Command::CreateMultisig(args) => handle_create_multisig(api.as_ref(), args, &submit).await,
         Command::UpdateMultisig(args) => {
-            handle_update_multisig_policy(&mut api, args, &submit).await
+            handle_update_multisig_policy(api.as_ref(), args, &submit).await
         }
-        Command::MultisigApprove(args) => handle_multisig_approve(&mut api, args, &submit).await,
-        Command::MultisigReject(args) => handle_multisig_reject(&mut api, args, &submit).await,
-        Command::MultisigCancel(args) => handle_multisig_cancel(&mut api, args, &submit).await,
-        Command::MultisigExecute(args) => handle_multisig_execute(&mut api, args, &submit).await,
-        Command::RiskConfig(args) => handle_risk_config(&mut api, args, &submit).await,
-        Command::UpdateFunding(args) => handle_funding_config(&mut api, args, &submit).await,
-        Command::AccountPolicy(args) => handle_account_policy(&mut api, args, &submit).await,
-        Command::UserAdmin(args) => handle_user_admin(&mut api, args, &submit).await,
-        Command::ConfigFees(args) => handle_config_fees(&mut api, args, &submit).await,
-        Command::ConfigMaker(args) => handle_config_maker(&mut api, args, &submit).await,
-        Command::LiqConfig(args) => handle_liquidator_config(&mut api, args, &submit).await,
-        Command::Corrs(args) => handle_corrs(&mut api, args, &submit).await,
-        Command::AddMarket(args) => handle_add_market(&mut api, args, &submit).await,
-        Command::MarketAdmin(args) => handle_market_admin(&mut api, args, &submit).await,
-        Command::PricingAdmin(args) => handle_pricing_admin(&mut api, args, &submit).await,
+        Command::MultisigApprove(args) => {
+            handle_multisig_approve(api.as_ref(), args, &submit).await
+        }
+        Command::MultisigReject(args) => handle_multisig_reject(api.as_ref(), args, &submit).await,
+        Command::MultisigCancel(args) => handle_multisig_cancel(api.as_ref(), args, &submit).await,
+        Command::MultisigExecute(args) => {
+            handle_multisig_execute(api.as_ref(), args, &submit).await
+        }
+        Command::RiskConfig(args) => handle_risk_config(api.as_ref(), args, &submit).await,
+        Command::UpdateFunding(args) => handle_funding_config(api.as_ref(), args, &submit).await,
+        Command::AccountPolicy(args) => handle_account_policy(api.as_ref(), args, &submit).await,
+        Command::UserAdmin(args) => handle_user_admin(api.as_ref(), args, &submit).await,
+        Command::ConfigFees(args) => handle_config_fees(api.as_ref(), args, &submit).await,
+        Command::ConfigMaker(args) => handle_config_maker(api.as_ref(), args, &submit).await,
+        Command::LiqConfig(args) => handle_liquidator_config(api.as_ref(), args, &submit).await,
+        Command::Corrs(args) => handle_corrs(api.as_ref(), args, &submit).await,
+        Command::AddMarket(args) => handle_add_market(api.as_ref(), args, &submit).await,
+        Command::MarketAdmin(args) => handle_market_admin(api.as_ref(), args, &submit).await,
+        Command::PricingAdmin(args) => handle_pricing_admin(api.as_ref(), args, &submit).await,
         Command::LedgerInfo(_) => unreachable!("handled before API setup"),
         Command::Config(_) => unreachable!("handled before API setup"),
         Command::Deposit(_) | Command::WithdrawIntent(_) => {

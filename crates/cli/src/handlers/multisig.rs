@@ -13,7 +13,7 @@ use eyre::bail;
 // ---------------------------------------------------------------------------
 
 pub async fn handle_create_multisig(
-    api: &mut Option<BulkHttpClient>,
+    api: Option<&BulkHttpClient>,
     args: CreateMultisigArgs,
     submit: &SubmitOptions,
 ) -> eyre::Result<()> {
@@ -34,9 +34,9 @@ pub async fn handle_create_multisig(
         args.signers.len(),
         args.lock,
         args.lifetime,
-    ));
+    ))?;
     for (i, pk) in args.signers.iter().enumerate() {
-        submit.progress(format_args!("  signer[{i}] = {pk}"));
+        submit.progress(format_args!("  signer[{i}] = {pk}"))?;
     }
 
     let action = Action::CreateMultisig(CreateMultisig {
@@ -54,7 +54,7 @@ pub async fn handle_create_multisig(
 // ---------------------------------------------------------------------------
 
 pub async fn handle_update_multisig_policy(
-    api: &mut Option<BulkHttpClient>,
+    api: Option<&BulkHttpClient>,
     args: UpdateMultisigPolicyArgs,
     submit: &SubmitOptions,
 ) -> eyre::Result<()> {
@@ -81,7 +81,7 @@ pub async fn handle_update_multisig_policy(
     submit.progress(format_args!(
         "Updating multisig {}  signers={:?}  threshold={:?}  lock={:?}s  lifetime={:?}s",
         args.multisig, args.signers, args.threshold, args.lock, args.lifetime,
-    ));
+    ))?;
 
     let action = Action::UpdateMultisigPolicy(UpdateMultisigPolicy {
         multisig: args.multisig,
@@ -99,14 +99,14 @@ pub async fn handle_update_multisig_policy(
 // ---------------------------------------------------------------------------
 
 pub async fn handle_multisig_approve(
-    api: &mut Option<BulkHttpClient>,
+    api: Option<&BulkHttpClient>,
     args: MultisigProposalArgs,
     submit: &SubmitOptions,
 ) -> eyre::Result<()> {
     submit.progress(format_args!(
         "Approving proposal {} on multisig {}",
         args.proposal_id, args.multisig
-    ));
+    ))?;
 
     let action = Action::MultisigApprove(MultisigApprove {
         multisig: args.multisig,
@@ -121,14 +121,14 @@ pub async fn handle_multisig_approve(
 // ---------------------------------------------------------------------------
 
 pub async fn handle_multisig_reject(
-    api: &mut Option<BulkHttpClient>,
+    api: Option<&BulkHttpClient>,
     args: MultisigProposalArgs,
     submit: &SubmitOptions,
 ) -> eyre::Result<()> {
     submit.progress(format_args!(
         "Rejecting proposal {} on multisig {}",
         args.proposal_id, args.multisig
-    ));
+    ))?;
 
     let action = Action::MultisigReject(MultisigReject {
         multisig: args.multisig,
@@ -143,14 +143,14 @@ pub async fn handle_multisig_reject(
 // ---------------------------------------------------------------------------
 
 pub async fn handle_multisig_cancel(
-    api: &mut Option<BulkHttpClient>,
+    api: Option<&BulkHttpClient>,
     args: MultisigProposalArgs,
     submit: &SubmitOptions,
 ) -> eyre::Result<()> {
     submit.progress(format_args!(
         "Cancelling proposal {} on multisig {}",
         args.proposal_id, args.multisig
-    ));
+    ))?;
 
     let action = Action::MultisigCancel(MultisigCancel {
         multisig: args.multisig,
@@ -165,14 +165,14 @@ pub async fn handle_multisig_cancel(
 // ---------------------------------------------------------------------------
 
 pub async fn handle_multisig_execute(
-    api: &mut Option<BulkHttpClient>,
+    api: Option<&BulkHttpClient>,
     args: MultisigProposalArgs,
     submit: &SubmitOptions,
 ) -> eyre::Result<()> {
     submit.progress(format_args!(
         "Executing proposal {} on multisig {}",
         args.proposal_id, args.multisig
-    ));
+    ))?;
 
     let action = Action::MultisigExecute(MultisigExecute {
         multisig: args.multisig,
