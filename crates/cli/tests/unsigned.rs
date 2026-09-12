@@ -143,3 +143,25 @@ fn unsigned_rejects_missing_context_and_unsupported_modes() {
         assert!(out.stdout.is_empty());
     }
 }
+
+#[test]
+fn signed_progress_keeps_stdout_and_unsigned_keeps_json() {
+    // Disposable public test seed; decline the preview before any HTTP submission.
+    let out = Command::new(env!("CARGO_BIN_EXE_bulk"))
+        .env("BULK_PRIVATE_KEY", "11111111111111111111111111111111")
+        .env_remove("BULK_SIGNATURE_DOMAIN")
+        .args([
+            "place",
+            "Buy",
+            "BTC-USD",
+            "0.01@95000",
+            "--signature-domain",
+            "testnet",
+        ])
+        .stdin(std::process::Stdio::null())
+        .output()
+        .unwrap();
+    assert!(!out.status.success());
+    assert!(String::from_utf8_lossy(&out.stdout).starts_with("Placing Limit Buy BTC-USD"));
+    assert!(String::from_utf8_lossy(&out.stderr).contains("transaction rejected by user"));
+}

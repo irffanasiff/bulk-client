@@ -12,7 +12,7 @@ use bulk_client::BulkHttpClient;
 use std::path::Path;
 
 pub async fn handle_risk_config(
-    api: &mut BulkHttpClient,
+    api: &mut Option<BulkHttpClient>,
     args: RiskConfigArgs,
     submit: &SubmitOptions,
 ) -> eyre::Result<()> {
@@ -41,7 +41,7 @@ pub async fn handle_risk_config(
 /// # Returns
 /// An error when the input cannot be read, parsed, or submitted.
 pub async fn handle_funding_config(
-    api: &mut BulkHttpClient,
+    api: &mut Option<BulkHttpClient>,
     args: FundingConfigArgs,
     submit: &SubmitOptions,
 ) -> eyre::Result<()> {
@@ -69,7 +69,7 @@ pub async fn handle_funding_config(
 /// # Returns
 /// An error when the input cannot be read, parsed, or submitted.
 pub async fn handle_account_policy(
-    api: &mut BulkHttpClient,
+    api: &mut Option<BulkHttpClient>,
     args: AccountPolicyArgs,
     submit: &SubmitOptions,
 ) -> eyre::Result<()> {
@@ -97,7 +97,7 @@ pub async fn handle_account_policy(
 /// # Returns
 /// An error when the action cannot be submitted.
 pub async fn handle_user_admin(
-    api: &mut BulkHttpClient,
+    api: &mut Option<BulkHttpClient>,
     args: UserAdminArgs,
     submit: &SubmitOptions,
 ) -> eyre::Result<()> {
@@ -124,7 +124,7 @@ pub async fn handle_user_admin(
 }
 
 pub async fn handle_liquidator_config(
-    api: &mut BulkHttpClient,
+    api: &mut Option<BulkHttpClient>,
     args: LiquidatorConfigArgs,
     submit: &SubmitOptions,
 ) -> eyre::Result<()> {

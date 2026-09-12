@@ -11,15 +11,15 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 pub async fn handle_faucet(
-    api: &mut BulkHttpClient,
+    api: &mut Option<BulkHttpClient>,
     args: FaucetArgs,
     submit: &SubmitOptions,
 ) -> eyre::Result<()> {
     let account = submit
         .unsigned_account
-        .or_else(|| api.public_key())
+        .or_else(|| api.as_ref().and_then(|api| api.public_key()))
         .ok_or_else(|| eyre::eyre!("account required"))?;
-    eprintln!("Faucet request for account {}", account);
+    submit.progress(format_args!("Faucet request for account {}", account));
 
     let action = Action::Faucet(Faucet {
         user: account,
@@ -35,12 +35,12 @@ pub async fn handle_faucet(
 // ---------------------------------------------------------------------------
 
 pub async fn handle_update_leverage(
-    api: &mut BulkHttpClient,
+    api: &mut Option<BulkHttpClient>,
     args: UpdateLeverageArgs,
     submit: &SubmitOptions,
 ) -> eyre::Result<()> {
     for (sym, lev) in &args.settings {
-        eprintln!("  {sym} → {lev}x");
+        submit.progress(format_args!("  {sym} → {lev}x"));
     }
 
     let max_leverage: HashMap<String, f64> = args.settings.into_iter().collect();
@@ -58,12 +58,12 @@ pub async fn handle_update_leverage(
 // ---------------------------------------------------------------------------
 
 pub async fn handle_agent_wallet(
-    api: &mut BulkHttpClient,
+    api: &mut Option<BulkHttpClient>,
     args: AgentWalletArgs,
     submit: &SubmitOptions,
 ) -> eyre::Result<()> {
     let verb = if args.delete { "Removing" } else { "Adding" };
-    eprintln!("{verb} agent wallet {}", args.agent);
+    submit.progress(format_args!("{verb} agent wallet {}", args.agent));
 
     let action = Action::AgentWalletCreation(AgentWalletCreation {
         agent: args.agent,
@@ -79,14 +79,14 @@ pub async fn handle_agent_wallet(
 // ---------------------------------------------------------------------------
 
 pub async fn handle_create_subaccount(
-    api: &mut BulkHttpClient,
+    api: &mut Option<BulkHttpClient>,
     args: CreateSubAccountArgs,
     submit: &SubmitOptions,
 ) -> eyre::Result<()> {
-    eprintln!(
+    submit.progress(format_args!(
         "Creating sub-account '{}' margin_symbol={:?} margin_amount={:?}",
         args.name, args.margin_symbol, args.margin_amount
-    );
+    ));
 
     let action = Action::CreateSubAccount(CreateSubAccount {
         name: Arc::from(args.name.as_str()),
@@ -102,11 +102,11 @@ pub async fn handle_create_subaccount(
 // ---------------------------------------------------------------------------
 
 pub async fn handle_remove_subaccount(
-    api: &mut BulkHttpClient,
+    api: &mut Option<BulkHttpClient>,
     args: RemoveSubAccountArgs,
     submit: &SubmitOptions,
 ) -> eyre::Result<()> {
-    eprintln!("Removing sub-account {}", args.pubkey);
+    submit.progress(format_args!("Removing sub-account {}", args.pubkey));
 
     let action = Action::RemoveSubAccount(RemoveSubAccount {
         to_remove: args.pubkey,
@@ -121,14 +121,14 @@ pub async fn handle_remove_subaccount(
 // ---------------------------------------------------------------------------
 
 pub async fn handle_transfer(
-    api: &mut BulkHttpClient,
+    api: &mut Option<BulkHttpClient>,
     args: TransferArgs,
     submit: &SubmitOptions,
 ) -> eyre::Result<()> {
-    eprintln!(
+    submit.progress(format_args!(
         "Transferring {} {} from {} → {} ({:?})",
         args.amount, args.symbol, args.from, args.to, args.kind
-    );
+    ));
 
     let action = Action::Transfer(Transfer {
         kind: args.kind,

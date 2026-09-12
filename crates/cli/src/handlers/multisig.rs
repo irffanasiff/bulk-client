@@ -13,7 +13,7 @@ use eyre::bail;
 // ---------------------------------------------------------------------------
 
 pub async fn handle_create_multisig(
-    api: &mut BulkHttpClient,
+    api: &mut Option<BulkHttpClient>,
     args: CreateMultisigArgs,
     submit: &SubmitOptions,
 ) -> eyre::Result<()> {
@@ -28,15 +28,15 @@ pub async fn handle_create_multisig(
         );
     }
 
-    eprintln!(
+    submit.progress(format_args!(
         "Creating {}-of-{} multisig  lock={}s  lifetime={}s",
         args.threshold,
         args.signers.len(),
         args.lock,
         args.lifetime,
-    );
+    ));
     for (i, pk) in args.signers.iter().enumerate() {
-        eprintln!("  signer[{i}] = {pk}");
+        submit.progress(format_args!("  signer[{i}] = {pk}"));
     }
 
     let action = Action::CreateMultisig(CreateMultisig {
@@ -54,7 +54,7 @@ pub async fn handle_create_multisig(
 // ---------------------------------------------------------------------------
 
 pub async fn handle_update_multisig_policy(
-    api: &mut BulkHttpClient,
+    api: &mut Option<BulkHttpClient>,
     args: UpdateMultisigPolicyArgs,
     submit: &SubmitOptions,
 ) -> eyre::Result<()> {
@@ -78,10 +78,10 @@ pub async fn handle_update_multisig_policy(
         bail!("at least one policy field must be supplied");
     }
 
-    eprintln!(
+    submit.progress(format_args!(
         "Updating multisig {}  signers={:?}  threshold={:?}  lock={:?}s  lifetime={:?}s",
         args.multisig, args.signers, args.threshold, args.lock, args.lifetime,
-    );
+    ));
 
     let action = Action::UpdateMultisigPolicy(UpdateMultisigPolicy {
         multisig: args.multisig,
@@ -99,14 +99,14 @@ pub async fn handle_update_multisig_policy(
 // ---------------------------------------------------------------------------
 
 pub async fn handle_multisig_approve(
-    api: &mut BulkHttpClient,
+    api: &mut Option<BulkHttpClient>,
     args: MultisigProposalArgs,
     submit: &SubmitOptions,
 ) -> eyre::Result<()> {
-    eprintln!(
+    submit.progress(format_args!(
         "Approving proposal {} on multisig {}",
         args.proposal_id, args.multisig
-    );
+    ));
 
     let action = Action::MultisigApprove(MultisigApprove {
         multisig: args.multisig,
@@ -121,14 +121,14 @@ pub async fn handle_multisig_approve(
 // ---------------------------------------------------------------------------
 
 pub async fn handle_multisig_reject(
-    api: &mut BulkHttpClient,
+    api: &mut Option<BulkHttpClient>,
     args: MultisigProposalArgs,
     submit: &SubmitOptions,
 ) -> eyre::Result<()> {
-    eprintln!(
+    submit.progress(format_args!(
         "Rejecting proposal {} on multisig {}",
         args.proposal_id, args.multisig
-    );
+    ));
 
     let action = Action::MultisigReject(MultisigReject {
         multisig: args.multisig,
@@ -143,14 +143,14 @@ pub async fn handle_multisig_reject(
 // ---------------------------------------------------------------------------
 
 pub async fn handle_multisig_cancel(
-    api: &mut BulkHttpClient,
+    api: &mut Option<BulkHttpClient>,
     args: MultisigProposalArgs,
     submit: &SubmitOptions,
 ) -> eyre::Result<()> {
-    eprintln!(
+    submit.progress(format_args!(
         "Cancelling proposal {} on multisig {}",
         args.proposal_id, args.multisig
-    );
+    ));
 
     let action = Action::MultisigCancel(MultisigCancel {
         multisig: args.multisig,
@@ -165,14 +165,14 @@ pub async fn handle_multisig_cancel(
 // ---------------------------------------------------------------------------
 
 pub async fn handle_multisig_execute(
-    api: &mut BulkHttpClient,
+    api: &mut Option<BulkHttpClient>,
     args: MultisigProposalArgs,
     submit: &SubmitOptions,
 ) -> eyre::Result<()> {
-    eprintln!(
+    submit.progress(format_args!(
         "Executing proposal {} on multisig {}",
         args.proposal_id, args.multisig
-    );
+    ));
 
     let action = Action::MultisigExecute(MultisigExecute {
         multisig: args.multisig,

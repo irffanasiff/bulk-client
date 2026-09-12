@@ -33,7 +33,7 @@ fn read_json5_or_inline<T: serde::de::DeserializeOwned>(
 }
 
 pub async fn handle_corrs(
-    api: &mut BulkHttpClient,
+    api: &mut Option<BulkHttpClient>,
     args: CorrsArgs,
     submit: &SubmitOptions,
 ) -> eyre::Result<()> {
@@ -49,7 +49,7 @@ pub async fn handle_corrs(
 }
 
 pub async fn handle_add_market(
-    api: &mut BulkHttpClient,
+    api: &mut Option<BulkHttpClient>,
     args: AddMarketArgs,
     submit: &SubmitOptions,
 ) -> eyre::Result<()> {
@@ -75,7 +75,7 @@ pub async fn handle_add_market(
 /// # Returns
 /// An error when the update cannot be parsed, encoded, or submitted.
 pub async fn handle_config_fees(
-    api: &mut BulkHttpClient,
+    api: &mut Option<BulkHttpClient>,
     args: ConfigFeesArgs,
     submit: &SubmitOptions,
 ) -> eyre::Result<()> {
@@ -112,7 +112,7 @@ pub async fn handle_config_fees(
 /// # Returns
 /// An error when the override cannot be parsed or submitted.
 pub async fn handle_config_maker(
-    api: &mut BulkHttpClient,
+    api: &mut Option<BulkHttpClient>,
     args: ConfigMakerArgs,
     submit: &SubmitOptions,
 ) -> eyre::Result<()> {
@@ -137,7 +137,7 @@ pub async fn handle_config_maker(
 /// # Returns
 /// An error when arguments are invalid or transaction submission fails.
 pub async fn handle_market_admin(
-    api: &mut BulkHttpClient,
+    api: &mut Option<BulkHttpClient>,
     args: MarketAdminArgs,
     submit: &SubmitOptions,
 ) -> eyre::Result<()> {
@@ -176,7 +176,7 @@ pub async fn handle_market_admin(
 /// # Returns
 /// An error when transaction submission fails.
 pub async fn handle_pricing_admin(
-    api: &mut BulkHttpClient,
+    api: &mut Option<BulkHttpClient>,
     args: PricingAdminArgs,
     submit: &SubmitOptions,
 ) -> eyre::Result<()> {

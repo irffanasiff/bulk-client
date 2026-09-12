@@ -1,7 +1,9 @@
 use bulk_client::msgs::MultisigPropose;
 use bulk_client::msgs::Response;
 use bulk_client::parts::make_nonce;
-use bulk_client::transaction::{Action, ActionMeta, ClearSignMessage, Transaction};
+use bulk_client::transaction::{
+    Action, ActionMeta, ClearSignMessage, SignatureDomain, Transaction,
+};
 use bulk_client::BulkHttpClient;
 use solana_pubkey::Pubkey;
 use std::fmt::Write as _;
@@ -17,18 +19,28 @@ pub struct SubmitOptions {
     pub unsigned_account: Option<Pubkey>,
     pub unsigned_signer: Option<Pubkey>,
     pub nonce: Option<u64>,
+    pub signature_domain: Option<SignatureDomain>,
+}
+
+impl SubmitOptions {
+    pub fn progress(&self, message: std::fmt::Arguments<'_>) {
+        if self.unsigned_account.is_some() {
+            eprintln!("{message}");
+        } else {
+            println!("{message}");
+        }
+    }
 }
 
 pub async fn submit_actions(
-    api: &mut BulkHttpClient,
+    api: &mut Option<BulkHttpClient>,
     options: &SubmitOptions,
     actions: Vec<Action>,
 ) -> eyre::Result<()> {
     let actions = wrap_admin_actions(actions);
     let nonce = options.nonce.unwrap_or_else(make_nonce);
-    let cfg = api.config();
     if let Some(account) = options.unsigned_account {
-        let domain = cfg
+        let domain = options
             .signature_domain
             .ok_or_else(|| eyre::eyre!("signature domain required"))?;
         let bytes = Transaction::raw_signable_bytes(domain, account, nonce, &actions)?;
@@ -50,6 +62,10 @@ pub async fn submit_actions(
         );
         return Ok(());
     }
+    let api = api
+        .as_ref()
+        .ok_or_else(|| eyre::eyre!("signed client required"))?;
+    let cfg = api.config();
     let signer = cfg
         .signer
         .as_ref()

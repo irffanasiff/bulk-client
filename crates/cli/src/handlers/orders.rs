@@ -7,7 +7,7 @@ use bulk_client::BulkHttpClient;
 use std::sync::Arc;
 
 pub async fn handle_place(
-    api: &mut BulkHttpClient,
+    api: &mut Option<BulkHttpClient>,
     args: PlaceArgs,
     submit: &SubmitOptions,
 ) -> eyre::Result<()> {
@@ -25,7 +25,7 @@ pub async fn handle_place(
             .unwrap_or(bulk_client::msgs::DEFAULT_MARKET_SLIPPAGE_BPS)
     });
 
-    eprintln!(
+    submit.progress(format_args!(
         "Placing {} {} {} {:?} tif={:?}{}{}{}",
         order_type,
         args.side,
@@ -37,7 +37,7 @@ pub async fn handle_place(
         market_slippage
             .map(|bps| format!(" slippage={bps}bps"))
             .unwrap_or_default(),
-    );
+    ));
 
     let action = if args.qty_price.price.is_some() {
         Action::LimitOrder(LimitOrder {
@@ -68,14 +68,14 @@ pub async fn handle_place(
 }
 
 pub async fn handle_modify(
-    api: &mut BulkHttpClient,
+    api: &mut Option<BulkHttpClient>,
     args: ModifyArgs,
     submit: &SubmitOptions,
 ) -> eyre::Result<()> {
-    eprintln!(
+    submit.progress(format_args!(
         "Modifying order {} on {} → size {}",
         args.order_id, args.symbol, args.size
-    );
+    ));
 
     let action = Action::ModifyOrder(ModifyOrder {
         order_id: args.order_id,

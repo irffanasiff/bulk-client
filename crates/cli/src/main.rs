@@ -440,6 +440,7 @@ async fn main() -> eyre::Result<()> {
         unsigned_account: cli.account,
         unsigned_signer: cli.signer,
         nonce: cli.nonce,
+        signature_domain: cli.signature_domain,
     };
 
     if matches!(&cli.command, Command::LedgerInfo(_)) {
@@ -495,7 +496,11 @@ async fn main() -> eyre::Result<()> {
         signature_domain: Some(signature_domain),
         default_timeout,
     };
-    let mut api = BulkHttpClient::new(&config)?;
+    let mut api = if cli.unsigned {
+        None
+    } else {
+        Some(BulkHttpClient::new(&config)?)
+    };
 
     match cli.command {
         // Account
