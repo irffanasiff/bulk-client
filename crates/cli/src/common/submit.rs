@@ -68,6 +68,7 @@ fn validate_unsigned_actions(actions: &[Action]) -> eyre::Result<()> {
     }
     fn fixed(value: f64) -> eyre::Result<()> {
         positive(value)?;
+        // Mirrors the private SCALE in bulk_client::msgs::fixed_point.
         let scaled = (value * 1e8).round();
         eyre::ensure!(
             scaled >= 1.0 && scaled < u64::MAX as f64,

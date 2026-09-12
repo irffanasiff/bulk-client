@@ -321,10 +321,6 @@ export BULK_API_URL="https://exchange-api.bulk.trade/api/v1"
   - [HTTP](docs/python-http-api.md)
 - [Clear sign v1](docs/clear-sign-v1.md)
 
-## License
-
-Licensed under the [Apache License, Version 2.0](LICENSE).
-
 ## Unsigned CLI transactions
 
 Use `--unsigned` on exchange transaction commands to export JSON for an external
@@ -359,3 +355,7 @@ Numeric fields must be finite and positive (slippage may be zero); fixed-point
 values must not round to zero or overflow. Existing fixed-point rounding still applies.
 Preparation does not verify market tick sizes, account eligibility, or venue acceptance.
 Validation failures emit no JSON. Normal signed command behavior is unchanged.
+
+## License
+
+Licensed under the [Apache License, Version 2.0](LICENSE).
